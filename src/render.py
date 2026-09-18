@@ -82,15 +82,20 @@ def hand_payload(player: Player, room: Room) -> str:
 
     这是 QQ 官方平台下唯一可行的“私密发牌”方案：按钮用
     ``permission.specify_user_ids`` 限定只有本人可点，``enter=False``
-    让内容只进入本人输入框。
+    让内容只进入本人输入框。按钮 data 有长度上限，过长时退回不带序号的紧凑写法。
     """
-    tiles = " ".join(f"{i + 1}.{tile.text}" for i, tile in enumerate(player.hand))
-    text = (
-        f"{player.label}的手牌：{tiles}" if tiles else f"{player.label}的手牌：（空）"
-    )
+    suffix = "（看完请勿发送）"
+    pending = ""
     if player.pending is not None and room.current is player:
-        text += f"｜本回合抽到 {player.pending.text}"
-    return f"{text}（看完请勿发送）"
+        pending = f"｜抽到{player.pending.text}"
+    numbered = " ".join(f"{i + 1}.{tile.text}" for i, tile in enumerate(player.hand))
+    plain = " ".join(tile.text for tile in player.hand)
+    bodies = [body for body in (numbered, plain) if body] or ["空"]
+    for body in bodies:
+        data = f"{player.label}手牌 {body}{pending}{suffix}"
+        if len(data) <= 96:
+            return data
+    return f"{player.label}手牌 {plain}{pending}{suffix}"
 
 
 def render_outcome(outcome: GuessOutcome) -> str:
