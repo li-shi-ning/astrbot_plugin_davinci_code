@@ -49,8 +49,9 @@ def test_playing_buttons_hide_hands_behind_owner_permission() -> None:
     view = playing_buttons(room)
     hand_buttons = [b for b in view if "手牌" in b.label]
     assert [b.only_for for b in hand_buttons] == ["u1", "u2"]
-    assert "1.黑1" in hand_buttons[0].data
-    assert "1.白5" in hand_buttons[1].data
+    assert "黑1" in hand_buttons[0].data
+    assert "白5" in hand_buttons[1].data
+    assert "1.黑1" not in hand_buttons[0].data  # 不再带序号
 
     # 操作按钮永远指向当前回合玩家，而不是触发消息的玩家
     guess = next(b for b in view if b.label == "猜牌")

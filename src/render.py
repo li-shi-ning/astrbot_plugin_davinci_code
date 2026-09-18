@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from . import cards
 from .engine import (
     PHASE_CONTINUING,
     PHASE_ENDED,
@@ -25,21 +26,36 @@ def render_menu() -> str:
     return "🕵️ 达芬奇密码 · 点击下方按钮开局（规则见「玩法规则」）"
 
 
+# 图片形式的牌桌超过该长度时退回纯文字，避免超出 QQ Markdown 内容上限
+MAX_IMAGE_TABLE_CHARS = 1500
+
+
 def render_table(room: Room) -> str:
-    """公开牌桌：暗牌只显示 ``??``，不泄露颜色与数字。"""
+    """公开牌桌：暗牌统一用「背面图」，明牌用「牌面图」，都不带序号。"""
     if not room.started:
         lines = ["当前牌局："]
         lines.extend(f"{p.label} {p.name}" for p in room.players)
         lines.append("")
         lines.append(render_turn_hint(room))
         return "\n".join(lines)
+    table = _render_started_table(room, use_images=True)
+    if len(table) > MAX_IMAGE_TABLE_CHARS:
+        table = _render_started_table(room, use_images=False)
+    return table
+
+
+def _render_started_table(room: Room, use_images: bool) -> str:
+    """拼装进行中的牌桌；``use_images=False`` 时退回纯文字。"""
     lines = [f"牌堆 {len(room.deck)}", ""]
     for player in room.players:
         mark = "✅" if player.alive else "❌"
-        cells = [
-            f"{i + 1}.{tile.text if tile.revealed else '??'}"
-            for i, tile in enumerate(player.hand)
-        ]
+        if use_images:
+            cells = [
+                cards.tile_md(tile) if tile.revealed else cards.back_md()
+                for tile in player.hand
+            ]
+        else:
+            cells = [tile.text if tile.revealed else "??" for tile in player.hand]
         body = " ".join(cells) if cells else "(无牌)"
         lines.append(f"{player.label} {player.name}{mark}：{body}")
     lines.append("")
@@ -69,19 +85,13 @@ def hand_payload(player: Player, room: Room) -> str:
 
     这是 QQ 官方平台下唯一可行的“私密发牌”方案：按钮用
     ``permission.specify_user_ids`` 限定只有本人可点，``enter=False``
-    让内容只进入本人输入框。按钮 data 有长度上限，过长时退回紧凑写法。
+    让内容只进入本人输入框。手牌这里保持纯文字，方便在输入框里阅读。
     """
-    suffix = "（看完请勿发送）"
+    tiles = " ".join(tile.text for tile in player.hand) or "空"
     pending = ""
     if player.pending is not None and room.current is player:
         pending = f"｜抽到{player.pending.text}"
-    numbered = " ".join(f"{i + 1}.{tile.text}" for i, tile in enumerate(player.hand))
-    plain = " ".join(tile.text for tile in player.hand)
-    for body in [item for item in (numbered, plain) if item] or ["空"]:
-        data = f"{player.label}手牌 {body}{pending}{suffix}"
-        if len(data) <= 96:
-            return data
-    return f"{player.label}手牌 {plain}{pending}{suffix}"
+    return f"{player.label}手牌 {tiles}{pending}（看完请勿发送）"
 
 
 def render_outcome(outcome: GuessOutcome) -> str:
@@ -93,8 +103,8 @@ def render_outcome(outcome: GuessOutcome) -> str:
     if outcome.correct:
         text = (
             f"✅ {outcome.guesser_label}({outcome.guesser_name}) 猜中 "
-            f"{outcome.target_label}({outcome.target_name}) 第 {outcome.position} 张"
-            f"「{outcome.tile.text}」"
+            f"{outcome.target_label}({outcome.target_name}) 第 {outcome.position} 张 "
+            f"{cards.tile_md(outcome.tile)}"
         )
         if outcome.target_eliminated:
             text += f"\n💥 {outcome.target_label}({outcome.target_name}) 出局"
@@ -107,7 +117,7 @@ def render_outcome(outcome: GuessOutcome) -> str:
         if outcome.no_penalty:
             text += "，牌堆已空无需亮牌"
         elif outcome.penalty is not None:
-            text += f"，亮出线索牌「{outcome.penalty.text}」"
+            text += f"，亮出线索牌 {cards.tile_md(outcome.penalty)}"
         if outcome.self_eliminated:
             text += f"\n💥 {outcome.guesser_label}({outcome.guesser_name}) 出局"
     if outcome.finished:

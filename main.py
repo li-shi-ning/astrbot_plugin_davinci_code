@@ -18,6 +18,7 @@ from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star
 
 try:  # AstrBot 以包形式加载插件时走相对导入
+    from .src import cards
     from .src.buttons import build_buttons
     from .src.qqofficial import (
         extract_group_context,
@@ -29,6 +30,7 @@ except ImportError:  # pragma: no cover - 兼容以顶层模块加载
     plugin_dir = Path(__file__).resolve().parent
     if str(plugin_dir) not in sys.path:
         sys.path.insert(0, str(plugin_dir))
+    from src import cards
     from src.buttons import build_buttons
     from src.qqofficial import (
         extract_group_context,
@@ -48,6 +50,8 @@ class DavinciCodePlugin(Star):
         super().__init__(context)
         self.config = dict(config) if config else {}
         self.with_jokers = self._config_bool("with_jokers", True)
+        self.card_image_base = self._config_str("card_image_base", cards.DEFAULT_BASE)
+        cards.configure(self.card_image_base)
         self.service = GameService(with_jokers=self.with_jokers)
 
     async def initialize(self) -> None:
@@ -124,6 +128,13 @@ class DavinciCodePlugin(Star):
             if text.startswith(prefix):
                 return text[len(prefix) :].strip()
         return text
+
+    def _config_str(self, key: str, default: str) -> str:
+        value = (
+            self.config.get(key, default) if hasattr(self.config, "get") else default
+        )
+        text = str(value).strip() if value else ""
+        return text or default
 
     def _config_bool(self, key: str, default: bool) -> bool:
         value = (

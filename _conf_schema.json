@@ -4,5 +4,11 @@
     "type": "bool",
     "hint": "开启后共 26 张牌；关闭后为 24 张纯数字牌。建议保持开启。",
     "default": true
+  },
+  "card_image_base": {
+    "description": "牌面图片服务前缀（QQ Markdown 内嵌图）。",
+    "type": "string",
+    "hint": "格式为 {前缀}/背景色/文字色.png?text=文字。默认使用 placehold.co；若 QQ 抓取不到图片，可换成自己的图床前缀。图片加载失败时会显示替代文字（黑7/白0/百搭）。",
+    "default": "https://placehold.co/72x108"
   }
 }
