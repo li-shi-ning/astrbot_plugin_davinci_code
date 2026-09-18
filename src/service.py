@@ -39,10 +39,10 @@ ACTION_ALIASES = {
     "猜": "guess",
     "猜测": "guess",
     "收手": "stop",
-    "结束回合": "stop",
-    "不猜了": "stop",
     "放": "place",
     "放置": "place",
+    "结束回合": "stop",
+    "不猜了": "stop",
     "退出": "leave",
     "离开": "leave",
     "解散": "dissolve",
@@ -80,6 +80,8 @@ class GameService:
             return render_help()
         if action == "rules":
             return render_rules()
+        if action == "place":
+            return "百搭现在抽到即随机落位，不需要手动放置。"
         if action == "create":
             return self._create(session_id, user_id, name)
         if action == "join":
@@ -94,8 +96,6 @@ class GameService:
             return self._guess(session_id, user_id, rest)
         if action == "stop":
             return self._stop(session_id, user_id, name)
-        if action == "place":
-            return self._place(session_id, user_id, rest)
         if action == "leave":
             return self._leave(session_id, user_id, name)
         if action == "dissolve":
@@ -143,14 +143,6 @@ class GameService:
         room = self._require_room(session_id)
         room.stop(user_id)
         return f"🛑 {name} 收手，线索牌暗扣入列\n\n{render_table(room)}"
-
-    def _place(self, session_id: str, user_id: str, rest: str) -> str:
-        room = self._require_room(session_id)
-        token = rest.strip()
-        if not token.isdigit():
-            raise GameError("用法：达芬奇密码 放 <位置>，例如「达芬奇密码 放 2」")
-        room.place_joker(user_id, int(token))
-        return render_table(room)
 
     def _leave(self, session_id: str, user_id: str, name: str) -> str:
         room = self._require_room(session_id)

@@ -11,7 +11,6 @@ from src.engine import (
     PHASE_CONTINUING,
     PHASE_ENDED,
     PHASE_GUESSING,
-    PHASE_PLACING,
     WHITE,
     GameError,
     Room,
@@ -131,7 +130,7 @@ def test_guess_rejects_self_and_revealed_tiles() -> None:
         room.guess("u1", "B", 1, 5)
 
 
-def test_joker_guess_and_placement() -> None:
+def test_joker_guess() -> None:
     room = _ready_room()
     room.players[1].hand = [joker(WHITE)]
 
@@ -139,12 +138,21 @@ def test_joker_guess_and_placement() -> None:
     assert outcome.correct is True
     assert outcome.tile.is_joker
 
-    room.players[0].pending = joker()
+
+def test_drawn_joker_is_auto_placed() -> None:
+    """百搭抽到即随机落位，不再进入公开的选位阶段。"""
+    room = _ready_room()
+    room.players[0].pending = None
     room.players[0].pending_pos = None
-    room.phase = PHASE_PLACING
-    room.place_joker("u1", 2)
-    assert room.players[0].pending_pos == 1
+    room.players[0].hand = [black(1), white(3)]
+    room.deck = [joker(WHITE)]
+
+    room._begin_turn()
+
     assert room.phase == PHASE_GUESSING
+    assert room.players[0].pending is not None
+    assert room.players[0].pending.is_joker
+    assert room.players[0].pending_pos in (0, 1, 2)
 
 
 def test_deck_exhausted_has_no_penalty() -> None:
@@ -206,9 +214,6 @@ def test_random_game_terminates_with_one_winner() -> None:
             break
         current = room.current
         assert current is not None
-        if room.phase == PHASE_PLACING:
-            room.place_joker(current.user_id, 1)
-            continue
         if room.phase == PHASE_CONTINUING:
             room.stop(current.user_id)
             continue

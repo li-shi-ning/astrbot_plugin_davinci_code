@@ -9,7 +9,6 @@ from .engine import (
     MIN_PLAYERS,
     PHASE_CONTINUING,
     PHASE_GUESSING,
-    PHASE_PLACING,
     Room,
 )
 from .qqofficial import Button
@@ -62,11 +61,7 @@ def playing_buttons(room: Room) -> list[Button]:
     current = room.current
     if current is not None:
         actor = current.user_id
-        if room.phase == PHASE_PLACING:
-            buttons.append(
-                Button("dvc_place", "选择百搭位置", "达芬奇密码 放 ", only_for=actor)
-            )
-        elif room.phase == PHASE_GUESSING:
+        if room.phase == PHASE_GUESSING:
             buttons.append(
                 Button("dvc_guess", "猜牌", "达芬奇密码 猜 ", only_for=actor)
             )

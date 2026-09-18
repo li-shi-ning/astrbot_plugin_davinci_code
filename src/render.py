@@ -9,7 +9,6 @@ from .engine import (
     PHASE_CONTINUING,
     PHASE_ENDED,
     PHASE_GUESSING,
-    PHASE_PLACING,
     GuessOutcome,
     Player,
     Room,
@@ -58,11 +57,6 @@ def render_turn_hint(room: Room) -> str:
     current = room.current
     if current is None:
         return ""
-    if room.phase == PHASE_PLACING:
-        return (
-            f"▶ 轮到 {current.label} {current.name}：抽到百搭，"
-            f"点「选择百搭位置」填 1-{len(current.hand) + 1}"
-        )
     if room.phase == PHASE_GUESSING:
         return f"▶ 轮到 {current.label} {current.name}：点「手牌」看牌，再点「猜牌」"
     if room.phase == PHASE_CONTINUING:

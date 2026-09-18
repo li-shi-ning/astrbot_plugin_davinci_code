@@ -16,7 +16,6 @@ COLOR_CN = {BLACK: "黑", WHITE: "白"}
 
 # 房间/回合阶段
 PHASE_WAITING = "waiting"  # 等待开局
-PHASE_PLACING = "placing"  # 抽到百搭，等待选择插入位置
 PHASE_GUESSING = "guessing"  # 等待本回合第一次猜测
 PHASE_CONTINUING = "continuing"  # 猜中后，等待“继续猜 / 收手”
 PHASE_ENDED = "ended"  # 对局结束
@@ -224,25 +223,14 @@ class Room:
             tile = self.deck.pop()
             current.pending = tile
             if tile.is_joker:
-                self.phase = PHASE_PLACING
+                # 百搭可放在任意位置：抽到即随机落位，省去公开的选位操作
+                current.pending_pos = self.rng.randint(0, len(current.hand))
             else:
                 current.pending_pos = insert_index(current.hand, tile)
-                self.phase = PHASE_GUESSING
+            self.phase = PHASE_GUESSING
         else:
             # 牌堆抽空后仍可继续猜测，但猜错无需亮牌
             self.phase = PHASE_GUESSING
-
-    def place_joker(self, user_id: str, position: int) -> None:
-        if self.phase != PHASE_PLACING:
-            raise GameError("现在不需要放置百搭")
-        current = self._require_current(user_id)
-        if current.pending is None or not current.pending.is_joker:
-            raise GameError("当前没有待放置的百搭")
-        max_pos = len(current.hand) + 1
-        if not 1 <= position <= max_pos:
-            raise GameError(f"位置需要在 1 到 {max_pos} 之间")
-        current.pending_pos = position - 1
-        self.phase = PHASE_GUESSING
 
     def guess(
         self,
