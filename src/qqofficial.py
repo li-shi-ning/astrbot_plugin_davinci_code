@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import itertools
 import random
 from dataclasses import dataclass
 from typing import Any
@@ -30,6 +31,9 @@ QQOFFICIAL_EVENT_MODULE_PREFIXES = (
     "astrbot.core.platform.sources.qqofficial.",
     "astrbot.core.platform.sources.qqofficial_webhook.",
 )
+
+# 同一条用户消息的多次回复必须用不同的 msg_seq，改用递增计数器避免撞车
+_SEQ_COUNTER = itertools.count(random.randint(1, 5000))
 
 MAX_BUTTONS = 25
 BUTTONS_PER_ROW = 3
@@ -190,7 +194,7 @@ def passive_fields(context: GroupContext) -> dict[str, Any]:
     """被动回复所需的 ``msg_id`` / ``msg_seq``（同一消息需用不同 seq）。"""
     if not context.message_id:
         return {}
-    return {"msg_id": context.message_id, "msg_seq": random.randint(1, 10000)}
+    return {"msg_id": context.message_id, "msg_seq": next(_SEQ_COUNTER) % 10000 + 1}
 
 
 async def send_group_media(
