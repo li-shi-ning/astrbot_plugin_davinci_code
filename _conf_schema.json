@@ -1,0 +1,8 @@
+{
+  "with_jokers": {
+    "description": "是否加入两张百搭牌（黑白各一张）。",
+    "type": "bool",
+    "hint": "开启后共 26 张牌；关闭后为 24 张纯数字牌。建议保持开启。",
+    "default": true
+  }
+}
