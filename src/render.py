@@ -1,4 +1,7 @@
-"""把对局状态渲染成 QQ 官方 Markdown 文本与按钮数据。"""
+"""把对局状态渲染成 QQ 官方 Markdown 文本与按钮数据。
+
+文案保持精简：公开区只播报必要信息，教程类文字只在玩家主动查询时给出。
+"""
 
 from __future__ import annotations
 
@@ -7,7 +10,6 @@ from .engine import (
     PHASE_ENDED,
     PHASE_GUESSING,
     PHASE_PLACING,
-    PHASE_WAITING,
     GuessOutcome,
     Player,
     Room,
@@ -19,8 +21,9 @@ def guess_text(number: int | None) -> str:
     return "百搭" if number is None else str(number)
 
 
-def tile_text(tile_revealed: bool, text: str) -> str:
-    return text if tile_revealed else "??"
+def render_menu() -> str:
+    """默认入口：一句话 + 按钮。"""
+    return "🕵️ 达芬奇密码 · 点击下方按钮开局（规则见「玩法规则」）"
 
 
 def render_table(room: Room) -> str:
@@ -31,11 +34,11 @@ def render_table(room: Room) -> str:
         lines.append("")
         lines.append(render_turn_hint(room))
         return "\n".join(lines)
-    lines = [f"牌堆剩余 {len(room.deck)} 张", ""]
+    lines = [f"牌堆 {len(room.deck)}", ""]
     for player in room.players:
         mark = "✅" if player.alive else "❌"
         cells = [
-            f"{i + 1}.{tile_text(tile.revealed, tile.text)}"
+            f"{i + 1}.{tile.text if tile.revealed else '??'}"
             for i, tile in enumerate(player.hand)
         ]
         body = " ".join(cells) if cells else "(无牌)"
@@ -46,35 +49,25 @@ def render_table(room: Room) -> str:
 
 
 def render_turn_hint(room: Room) -> str:
-    """当前阶段的一句话提示。"""
+    """当前阶段的一句话提示，尽量短。"""
     if room.phase == PHASE_ENDED:
         winner = next((p for p in room.players if p.user_id == room.winner), None)
         if winner is None:
             return "对局结束。"
-        return f"🏁 对局结束，{winner.label} {winner.name} 获胜！"
+        return f"🏁 {winner.label} {winner.name} 获胜！"
     current = room.current
     if current is None:
         return ""
-    if room.phase == PHASE_WAITING:
-        return "等待房主点击「开始游戏」。"
     if room.phase == PHASE_PLACING:
-        max_pos = len(current.hand) + 1
         return (
-            f"轮到你（{current.label} {current.name}）：抽到百搭，"
-            f"请点击「选择百搭位置」并填 1-{max_pos}。"
+            f"▶ 轮到 {current.label} {current.name}：抽到百搭，"
+            f"点「选择百搭位置」填 1-{len(current.hand) + 1}"
         )
     if room.phase == PHASE_GUESSING:
-        return (
-            f"轮到 {current.label} {current.name}：请点击自己的「手牌」"
-            "查看本回合抽到的牌，再点击「猜牌」并补成"
-            "「达芬奇密码 猜 B3 7」（数字用 - 表示百搭）。"
-        )
+        return f"▶ 轮到 {current.label} {current.name}：点「手牌」看牌，再点「猜牌」"
     if room.phase == PHASE_CONTINUING:
-        return (
-            f"{current.label} {current.name} 猜对了！"
-            "可以继续猜，或点击「收手」结束回合。"
-        )
-    return ""
+        return f"▶ {current.label} {current.name} 猜对了，继续猜或点「收手」"
+    return "等待房主点击「开始游戏」"
 
 
 def hand_payload(player: Player, room: Room) -> str:
@@ -82,7 +75,7 @@ def hand_payload(player: Player, room: Room) -> str:
 
     这是 QQ 官方平台下唯一可行的“私密发牌”方案：按钮用
     ``permission.specify_user_ids`` 限定只有本人可点，``enter=False``
-    让内容只进入本人输入框。按钮 data 有长度上限，过长时退回不带序号的紧凑写法。
+    让内容只进入本人输入框。按钮 data 有长度上限，过长时退回紧凑写法。
     """
     suffix = "（看完请勿发送）"
     pending = ""
@@ -90,8 +83,7 @@ def hand_payload(player: Player, room: Room) -> str:
         pending = f"｜抽到{player.pending.text}"
     numbered = " ".join(f"{i + 1}.{tile.text}" for i, tile in enumerate(player.hand))
     plain = " ".join(tile.text for tile in player.hand)
-    bodies = [body for body in (numbered, plain) if body] or ["空"]
-    for body in bodies:
+    for body in [item for item in (numbered, plain) if item] or ["空"]:
         data = f"{player.label}手牌 {body}{pending}{suffix}"
         if len(data) <= 96:
             return data
@@ -99,46 +91,44 @@ def hand_payload(player: Player, room: Room) -> str:
 
 
 def render_outcome(outcome: GuessOutcome) -> str:
-    """播报一次猜测的结果。"""
-    head = (
-        f"{outcome.guesser_label}({outcome.guesser_name}) 猜 "
-        f"{outcome.target_label}({outcome.target_name}) 第 {outcome.position} 张"
-        f"是 {guess_text(outcome.guessed)}"
-    )
+    """播报一次猜测的结果。
+
+    猜中时公开被翻开的对手牌；猜错时只公开猜错者自己亮出的线索牌，
+    绝不能泄露对手那张暗牌。
+    """
     if outcome.correct:
-        text = f"✅ {head}，命中！翻出「{outcome.tile.text}」"
+        text = (
+            f"✅ {outcome.guesser_label}({outcome.guesser_name}) 猜中 "
+            f"{outcome.target_label}({outcome.target_name}) 第 {outcome.position} 张"
+            f"「{outcome.tile.text}」"
+        )
         if outcome.target_eliminated:
-            text += f"\n💥 {outcome.target_label}({outcome.target_name}) 的牌全部翻开，出局！"
+            text += f"\n💥 {outcome.target_label}({outcome.target_name}) 出局"
     else:
-        text = f"❌ {head}，猜错了"
+        text = (
+            f"❌ {outcome.guesser_label}({outcome.guesser_name}) 猜错"
+            f"（{outcome.target_label} 第 {outcome.position} 张不是 "
+            f"{guess_text(outcome.guessed)}）"
+        )
         if outcome.no_penalty:
-            text += "（牌堆已空，无需亮牌）"
-        else:
-            text += (
-                f"\n⬆️ {outcome.guesser_label}({outcome.guesser_name}) 亮出刚抽的"
-                f"「{outcome.tile.text}」"
-            )
+            text += "，牌堆已空无需亮牌"
+        elif outcome.penalty is not None:
+            text += f"，亮出线索牌「{outcome.penalty.text}」"
         if outcome.self_eliminated:
-            text += f"\n💥 {outcome.guesser_label}({outcome.guesser_name}) 的牌全部翻开，出局！"
+            text += f"\n💥 {outcome.guesser_label}({outcome.guesser_name}) 出局"
     if outcome.finished:
-        text += f"\n🏁 对局结束，{outcome.winner_label}({outcome.winner_name}) 获胜！"
+        text += f"\n🏁 {outcome.winner_label}({outcome.winner_name}) 获胜！"
     return text
 
 
 def render_help() -> str:
-    """指令与按钮说明。"""
+    """玩家主动查询时的指令说明。"""
     return (
-        "达芬奇密码 · 指令\n"
-        "创建牌局 / 加入牌局：开一局或入座（2-4 人）\n"
-        "开始游戏：房主开局\n"
-        "牌桌状态：查看公开牌面\n"
-        "我的牌：点自己的「手牌」按钮，内容只进本人输入框\n"
-        "猜牌：点击后补成「达芬奇密码 猜 B3 7」\n"
-        "  · 猜百搭写成「达芬奇密码 猜 B3 -」\n"
-        "选择百搭位置：抽到百搭时点击并填 1-N\n"
-        "收手：猜中后结束回合\n"
-        "退出牌局 / 解散牌局\n"
-        "玩法规则：查看完整规则"
+        "达芬奇密码\n"
+        "1. 创建/加入 → 房主「开始游戏」（2-4 人）\n"
+        "2. 轮到你：点「手牌」看牌 → 点「猜牌」→ 补成「达芬奇密码 猜 B3 7」\n"
+        "3. 猜中可继续或收手；猜错亮出线索牌；牌全翻开者出局\n"
+        "猜百搭写 -，完整规则见「达芬奇密码 规则」"
     )
 
 

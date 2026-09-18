@@ -79,6 +79,8 @@ class GuessOutcome:
     position: int
     guessed: int | None
     correct: bool
+    # 猜错时被亮出的线索牌（=猜错者本回合抽到的牌），绝不包含对手底牌
+    penalty: Tile | None = None
     target_eliminated: bool = False
     finished: bool = False
     winner_label: str | None = None
@@ -292,6 +294,7 @@ class Room:
         else:
             outcome.no_penalty = current.pending is None
             if current.pending is not None:
+                outcome.penalty = current.pending
                 self._insert_pending(current, revealed=True)
                 if all(t.revealed for t in current.hand):
                     current.alive = False

@@ -20,11 +20,11 @@ def test_parse_action_variants() -> None:
 def test_create_join_start_flow() -> None:
     service = GameService()
     text = service.dispatch("g1", "u1", "甲", "创建")
-    assert "创建了" in text
+    assert "创建了牌局" in text
     assert service.room("g1") is not None
 
     text = service.dispatch("g1", "u2", "乙", "加入")
-    assert "加入牌局" in text
+    assert "加入" in text
 
     with pytest.raises(GameError):
         service.dispatch("g1", "u2", "乙", "开始")
@@ -39,8 +39,10 @@ def test_dispatch_without_room_hints_create() -> None:
     service = GameService()
     with pytest.raises(GameError):
         service.dispatch("g1", "u1", "甲", "状态")
+    menu_text = service.dispatch("g1", "u1", "甲", "")
+    assert "达芬奇密码" in menu_text
     help_text = service.dispatch("g1", "u1", "甲", "帮助")
-    assert "指令" in help_text
+    assert "猜 B3 7" in help_text
 
 
 def test_duplicate_create_rejected() -> None:

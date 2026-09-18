@@ -14,7 +14,13 @@ from .engine import (
     GameError,
     Room,
 )
-from .render import render_help, render_outcome, render_rules, render_table
+from .render import (
+    render_help,
+    render_menu,
+    render_outcome,
+    render_rules,
+    render_table,
+)
 
 ACTION_ALIASES = {
     "创建": "create",
@@ -68,7 +74,9 @@ class GameService:
     def dispatch(self, session_id: str, user_id: str, name: str, text: str) -> str:
         """解析并执行一条指令，返回应展示的文本。"""
         action, rest = self._parse_action(text)
-        if action in (None, "help"):
+        if action is None:
+            return render_menu()
+        if action == "help":
             return render_help()
         if action == "rules":
             return render_rules()
@@ -92,7 +100,7 @@ class GameService:
             return self._leave(session_id, user_id, name)
         if action == "dissolve":
             return self._dissolve(session_id, user_id)
-        raise GameError("无法识别的指令，点击「玩法规则」或发送「达芬奇密码 帮助」")
+        raise GameError("无法识别的指令，发送「达芬奇密码 帮助」查看用法")
 
     # ------------------------------------------------------------------
     # 指令实现
@@ -103,20 +111,12 @@ class GameService:
         room = Room(session_id, with_jokers=self.with_jokers)
         room.add_player(user_id, name)
         self.rooms[session_id] = room
-        flavor = "含百搭" if self.with_jokers else "不含百搭"
-        return (
-            f"🎲 {name} 创建了达芬奇密码牌局（{flavor}）\n\n"
-            f"{render_table(room)}\n\n"
-            "其他玩家点击「加入牌局」，房主点击「开始游戏」（2-4 人）。"
-        )
+        return f"🎲 {name} 创建了牌局\n\n{render_table(room)}"
 
     def _join(self, session_id: str, user_id: str, name: str) -> str:
         room = self._require_room(session_id)
         room.add_player(user_id, name)
-        return (
-            f"👋 {name} 加入牌局（{len(room.players)}/{MAX_PLAYERS}）\n\n"
-            f"{render_table(room)}"
-        )
+        return f"👋 {name} 加入（{len(room.players)}/{MAX_PLAYERS}）\n\n{render_table(room)}"
 
     def _start(self, session_id: str, user_id: str) -> str:
         room = self._require_room(session_id)
@@ -129,8 +129,8 @@ class GameService:
         if player is None:
             raise GameError("你不在牌局中")
         return (
-            f"📩 {player.label} {player.name}，点击下方属于你的「手牌」按钮查看。"
-            "内容只会填入你自己的输入框，看完请勿发送。"
+            f"📩 {player.label} {player.name}，点下方属于你的「手牌」按钮查看"
+            "（只进你自己的输入框，勿发送）"
         )
 
     def _guess(self, session_id: str, user_id: str, rest: str) -> str:
@@ -173,7 +173,7 @@ class GameService:
     def _require_room(self, session_id: str) -> Room:
         room = self.rooms.get(session_id)
         if room is None:
-            raise GameError("本群还没有牌局，点击「创建牌局」开一局吧")
+            raise GameError("本群还没有牌局，点击「创建牌局」开一局")
         return room
 
     @staticmethod
@@ -192,14 +192,14 @@ class GameService:
             target_token, number_token = parts
             match = re.fullmatch(r"([A-Za-z])(\d+)", target_token)
             if match is None:
-                raise GameError("用法：达芬奇密码 猜 <玩家字母><位置> <数字>")
+                raise GameError("格式：达芬奇密码 猜 B3 7")
             label, position = match.group(1).upper(), int(match.group(2))
         elif len(parts) == 3:
             label = self._resolve_target(room, parts[0])
             position = int(parts[1])
             number_token = parts[2]
         else:
-            raise GameError("用法：达芬奇密码 猜 <玩家字母><位置> <数字>")
+            raise GameError("格式：达芬奇密码 猜 B3 7")
         if len(parts) == 2:
             label = self._resolve_target(room, label)
         return label, position, self._parse_number(number_token)
@@ -227,4 +227,4 @@ class GameService:
             number = int(lowered)
             if 0 <= number <= 11:
                 return number
-        raise GameError("猜测的数字需要在 0-11 之间，猜百搭请用 -")
+        raise GameError("数字需要在 0-11 之间，猜百搭请写 -")

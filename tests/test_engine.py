@@ -97,6 +97,9 @@ def test_wrong_guess_reveals_clue_tile_and_passes_turn() -> None:
     outcome = room.guess("u1", "B", 1, 9)
 
     assert outcome.correct is False
+    # 亮出的必须是猜错者自己的线索牌，不能泄露对手那张暗牌
+    assert outcome.penalty is drawn
+    assert room.players[1].hand[0].revealed is False
     assert any(tile is drawn and tile.revealed for tile in room.players[0].hand)
     assert room.players[0].hand[2] is drawn  # 白6 插到 白3 之后
     assert room.current is not None and room.current.user_id == "u2"
