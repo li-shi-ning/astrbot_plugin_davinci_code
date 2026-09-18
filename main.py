@@ -15,44 +15,35 @@ from typing import Any
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.star import Context, Star, register
+from astrbot.api.star import Context, Star
 
 try:  # AstrBot 以包形式加载插件时走相对导入
-    from .src.engine import MIN_PLAYERS, PHASE_CONTINUING, PHASE_GUESSING, PHASE_PLACING
+    from .src.buttons import build_buttons
     from .src.qqofficial import (
-        Button,
         extract_group_context,
         is_qqofficial_event,
         send_group_message,
     )
-    from .src.render import hand_payload
     from .src.service import GameError, GameService
 except ImportError:  # pragma: no cover - 兼容以顶层模块加载
     plugin_dir = Path(__file__).resolve().parent
     if str(plugin_dir) not in sys.path:
         sys.path.insert(0, str(plugin_dir))
-    from src.engine import MIN_PLAYERS, PHASE_CONTINUING, PHASE_GUESSING, PHASE_PLACING
+    from src.buttons import build_buttons
     from src.qqofficial import (
-        Button,
         extract_group_context,
         is_qqofficial_event,
         send_group_message,
     )
-    from src.render import hand_payload
     from src.service import GameError, GameService
 
 
-PLUGIN_NAME = "astrbot_plugin_davinci_code"
 COMMAND_NAMES = ("达芬奇密码", "达芬奇")
 
 
-@register(
-    PLUGIN_NAME,
-    "lishining",
-    "QQ 官方机器人群聊《达芬奇密码》推理桌游",
-    "1.0.0",
-)
 class DavinciCodePlugin(Star):
+    """QQ 官方机器人群聊《达芬奇密码》推理桌游。"""
+
     def __init__(self, context: Context, config: Any = None):
         super().__init__(context)
         self.config = dict(config) if config else {}
@@ -105,102 +96,13 @@ class DavinciCodePlugin(Star):
             except Exception as exc:  # noqa: BLE001 - 单条指令失败不影响其他群
                 logger.exception("[DavinciCode] dispatch failed: %s", exc)
                 text = "达芬奇密码处理失败，请稍后重试。"
-            buttons = self._build_buttons(context.group_openid, context.member_openid)
+            buttons = build_buttons(
+                self.service.room(context.group_openid), context.member_openid
+            )
 
         if not await send_group_message(event, context, text, buttons):
             yield event.plain_result(text)
         event.stop_event()
-
-    # ------------------------------------------------------------------
-    # 按钮布局
-    # ------------------------------------------------------------------
-    def _build_buttons(self, session_id: str, requester_id: str) -> list[Button]:
-        """根据牌局状态生成键盘；私密手牌按钮只对该玩家可点。"""
-        room = self.service.room(session_id)
-        if room is None:
-            return [
-                Button("dvc_create", "创建牌局", "达芬奇密码 创建"),
-                Button("dvc_rules", "玩法规则", "达芬奇密码 规则"),
-            ]
-        if not room.started:
-            return self._waiting_buttons(room, requester_id)
-        return self._playing_buttons(room, requester_id)
-
-    @staticmethod
-    def _waiting_buttons(room: Any, requester_id: str) -> list[Button]:
-        buttons = [Button("dvc_join", "加入牌局", "达芬奇密码 加入")]
-        host = room.players[0] if room.players else None
-        if host is not None and len(room.players) >= MIN_PLAYERS:
-            buttons.append(
-                Button(
-                    "dvc_start",
-                    "开始游戏",
-                    "达芬奇密码 开始",
-                    only_for=host.user_id,
-                )
-            )
-        if room.find(requester_id) is not None:
-            buttons.append(Button("dvc_leave", "退出牌局", "达芬奇密码 退出"))
-        buttons.append(Button("dvc_rules", "玩法规则", "达芬奇密码 规则"))
-        return buttons
-
-    @staticmethod
-    def _playing_buttons(room: Any, requester_id: str) -> list[Button]:
-        buttons: list[Button] = []
-        # 私密手牌：每个按钮只有本人能点，内容只进本人输入框
-        for index, player in enumerate(room.players):
-            buttons.append(
-                Button(
-                    f"dvc_hand_{index}",
-                    f"{player.label}·手牌",
-                    hand_payload(player, room),
-                    only_for=player.user_id,
-                )
-            )
-
-        current = room.current
-        if current is not None and current.user_id == requester_id:
-            if room.phase == PHASE_PLACING:
-                buttons.append(
-                    Button(
-                        "dvc_place",
-                        "选择百搭位置",
-                        "达芬奇密码 放 ",
-                        only_for=requester_id,
-                    )
-                )
-            elif room.phase == PHASE_GUESSING:
-                buttons.append(
-                    Button(
-                        "dvc_guess",
-                        "猜牌",
-                        "达芬奇密码 猜 ",
-                        only_for=requester_id,
-                    )
-                )
-            elif room.phase == PHASE_CONTINUING:
-                buttons.append(
-                    Button(
-                        "dvc_guess",
-                        "继续猜",
-                        "达芬奇密码 猜 ",
-                        only_for=requester_id,
-                    )
-                )
-                buttons.append(
-                    Button(
-                        "dvc_stop",
-                        "收手",
-                        "达芬奇密码 收手",
-                        only_for=requester_id,
-                    )
-                )
-
-        buttons.append(Button("dvc_state", "牌桌状态", "达芬奇密码 状态"))
-        buttons.append(Button("dvc_rules", "玩法规则", "达芬奇密码 规则"))
-        if room.players and room.players[0].user_id == requester_id:
-            buttons.append(Button("dvc_dissolve", "解散牌局", "达芬奇密码 解散"))
-        return buttons
 
     # ------------------------------------------------------------------
     # 工具

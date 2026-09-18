@@ -14,7 +14,12 @@ import random
 from dataclasses import dataclass
 from typing import Any
 
-from astrbot.api import logger
+try:  # 允许在未安装 AstrBot 的环境下单独导入本模块做测试
+    from astrbot.api import logger
+except ImportError:  # pragma: no cover
+    import logging
+
+    logger = logging.getLogger("astrbot_plugin_davinci_code")
 
 QQOFFICIAL_PLATFORMS = {"qq_official", "qq_official_webhook"}
 QQOFFICIAL_EVENT_NAMES = {
