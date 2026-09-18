@@ -51,7 +51,8 @@ class DavinciCodePlugin(Star):
         self.config = dict(config) if config else {}
         self.with_jokers = self._config_bool("with_jokers", True)
         self.card_image_base = self._config_str("card_image_base", cards.DEFAULT_BASE)
-        cards.configure(self.card_image_base)
+        size_text = self._config_str("card_image_size", "32x48")
+        cards.configure(self.card_image_base, *cards.parse_size(size_text))
         self.service = GameService(with_jokers=self.with_jokers)
 
     async def initialize(self) -> None:

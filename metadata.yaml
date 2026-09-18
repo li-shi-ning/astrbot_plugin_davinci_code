@@ -2,7 +2,7 @@ name: astrbot_plugin_davinci_code
 display_name: 达芬奇密码
 desc: QQ 官方机器人群聊《达芬奇密码》推理桌游，支持私密手牌按钮、完整牌局流程与自动判胜。
 short_desc: QQ 官方群聊《达芬奇密码》桌游，点按钮私密看牌，猜穿对手的密码。
-version: v1.0.4
+version: v1.0.5
 author: lishining
 repo: https://github.com/li-shi-ning/astrbot_plugin_davinci_code
 astrbot_version: ">=4.0"

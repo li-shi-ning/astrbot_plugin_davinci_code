@@ -10,5 +10,11 @@
     "type": "string",
     "hint": "格式为 {前缀}/背景色/文字色.png?text=文字。默认使用 placehold.co；若 QQ 抓取不到图片，可换成自己的图床前缀。图片加载失败时会显示替代文字（黑7/白0/百搭）。",
     "default": "https://placehold.co/72x108"
+  },
+  "card_image_size": {
+    "description": "牌面图片在 Markdown 里的显示尺寸。",
+    "type": "string",
+    "hint": "格式为 宽x高（px），默认 32x48。觉得牌太大就调小，例如 24x36。",
+    "default": "32x48"
   }
 }

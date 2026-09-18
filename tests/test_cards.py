@@ -16,18 +16,18 @@ def test_tile_image_url_and_alt() -> None:
     joker = cards.tile_md(Tile(WHITE, None, "wj", revealed=True))
     assert (
         black
-        == "![黑7 #48px #72px](https://placehold.co/72x108/000000/FFFFFF.png?text=7)"
+        == "![黑7 #32px #48px](https://placehold.co/72x108/000000/FFFFFF.png?text=7)"
     )
     assert (
         white
-        == "![白0 #48px #72px](https://placehold.co/72x108/FFFFFF/000000.png?text=0)"
+        == "![白0 #32px #48px](https://placehold.co/72x108/FFFFFF/000000.png?text=0)"
     )
     assert (
         joker
-        == "![百搭 #48px #72px](https://placehold.co/72x108/FFFFFF/000000.png?text=-)"
+        == "![百搭 #32px #48px](https://placehold.co/72x108/FFFFFF/000000.png?text=-)"
     )
     assert cards.back_md() == (
-        "![暗牌 #48px #72px](https://placehold.co/72x108/2563EB/2563EB.png?text=)"
+        "![暗牌 #32px #48px](https://placehold.co/72x108/2563EB/2563EB.png?text=)"
     )
 
 
@@ -83,3 +83,15 @@ def test_long_table_falls_back_to_text() -> None:
     assert len(table) <= MAX_IMAGE_TABLE_CHARS
     assert "placehold.co" not in table
     assert "黑11" in table
+
+
+def test_parse_size_validation() -> None:
+    from src.cards import DEFAULT_HEIGHT, DEFAULT_WIDTH, parse_size
+
+    assert parse_size("24x36") == (24, 36)
+    assert parse_size("24×36") == (24, 36)
+    assert parse_size("24 * 36") == (24, 36)
+    assert parse_size("") == (DEFAULT_WIDTH, DEFAULT_HEIGHT)
+    assert parse_size("bad") == (DEFAULT_WIDTH, DEFAULT_HEIGHT)
+    assert parse_size("1x1") == (DEFAULT_WIDTH, DEFAULT_HEIGHT)
+    assert parse_size("999x999") == (DEFAULT_WIDTH, DEFAULT_HEIGHT)

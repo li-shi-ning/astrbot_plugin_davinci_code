@@ -10,14 +10,16 @@ QQ 官方 Markdown 图片语法为 ``![替代文字 #宽px #高px](公网图片�
 
 from __future__ import annotations
 
+import re
+
 from .engine import BLACK, Tile
 
 DEFAULT_BASE = "https://placehold.co/72x108"
 BLACK_STYLE = "000000/FFFFFF"  # 黑底白字
 WHITE_STYLE = "FFFFFF/000000"  # 白底黑字
 BACK_STYLE = "2563EB/2563EB"  # 蓝底（背面）
-DEFAULT_WIDTH = 48
-DEFAULT_HEIGHT = 72
+DEFAULT_WIDTH = 32
+DEFAULT_HEIGHT = 48
 
 _base = DEFAULT_BASE
 _width = DEFAULT_WIDTH
@@ -43,6 +45,24 @@ def configure(
         _width = int(width)
     if height and height > 0:
         _height = int(height)
+
+
+def parse_size(text: str) -> tuple[int, int]:
+    """解析 ``32x48`` 形式的尺寸配置，非法时回退默认值。
+
+    Args:
+        text: 形如 ``32x48`` / ``32×48`` / ``32*48`` 的字符串。
+
+    Returns:
+        ``(宽, 高)`` 像素元组。
+    """
+    match = re.fullmatch(r"\s*(\d{1,3})\s*[x×*]\s*(\d{1,3})\s*", text or "")
+    if match is None:
+        return (DEFAULT_WIDTH, DEFAULT_HEIGHT)
+    width, height = int(match.group(1)), int(match.group(2))
+    if not 8 <= width <= 200 or not 8 <= height <= 300:
+        return (DEFAULT_WIDTH, DEFAULT_HEIGHT)
+    return (width, height)
 
 
 def reset() -> None:
