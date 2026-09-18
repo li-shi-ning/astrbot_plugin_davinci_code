@@ -67,3 +67,65 @@ def test_extract_group_context_from_raw_message() -> None:
     assert context.display_name == "甲"
     assert context.message_id == "msg1"
     assert context.msg_seq == 2
+
+
+def test_send_group_media_uploads_then_posts() -> None:
+    import asyncio
+
+    from src.qqofficial import GroupContext, send_group_media
+
+    class API:
+        def __init__(self):
+            self.posts: list[dict] = []
+
+        async def post_group_message(self, **kwargs):
+            self.posts.append(kwargs)
+
+    class Event:
+        def __init__(self):
+            self.uploads: list[dict] = []
+            self.bot = SimpleNamespace(api=API())
+
+        async def upload_group_and_c2c_media(self, **kwargs):
+            self.uploads.append(kwargs)
+            return {"file_info": "FILEINFO"}
+
+    context = GroupContext(
+        group_openid="g1", member_openid="u1", display_name="甲", message_id="m1"
+    )
+    event = Event()
+    assert asyncio.run(send_group_media(event, context, "/tmp/board.png")) is True
+
+    assert event.uploads[0]["file_type"] == 1
+    assert event.uploads[0]["group_openid"] == "g1"
+    post = event.bot.api.posts[0]
+    assert post["msg_type"] == 7
+    assert post["media"] == {"file_info": "FILEINFO"}
+    assert post["msg_id"] == "m1"
+    assert "msg_seq" in post
+
+
+def test_send_group_media_returns_false_without_uploader() -> None:
+    import asyncio
+
+    from src.qqofficial import GroupContext, send_group_media
+
+    context = GroupContext(group_openid="g1", member_openid="u1", display_name="甲")
+    assert (
+        asyncio.run(send_group_media(SimpleNamespace(), context, "/tmp/x.png")) is False
+    )
+
+
+def test_send_group_media_swallows_upload_error() -> None:
+    import asyncio
+
+    from src.qqofficial import GroupContext, send_group_media
+
+    class Event:
+        bot = SimpleNamespace(api=SimpleNamespace(post_group_message=lambda **kw: None))
+
+        async def upload_group_and_c2c_media(self, **kwargs):
+            raise RuntimeError("boom")
+
+    context = GroupContext(group_openid="g1", member_openid="u1", display_name="甲")
+    assert asyncio.run(send_group_media(Event(), context, "/tmp/x.png")) is False

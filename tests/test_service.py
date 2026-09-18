@@ -5,7 +5,12 @@ from __future__ import annotations
 import pytest
 
 from src.engine import GameError
-from src.service import GameService
+from src.service import GameService, Reply
+
+
+def flat(reply: Reply) -> str:
+    """把 Reply 的三段拼起来，便于做子串断言。"""
+    return "\n\n".join(p for p in (reply.text, reply.table, reply.hint) if p)
 
 
 def test_parse_action_variants() -> None:
@@ -19,17 +24,17 @@ def test_parse_action_variants() -> None:
 
 def test_create_join_start_flow() -> None:
     service = GameService()
-    text = service.dispatch("g1", "u1", "甲", "创建")
+    text = flat(service.dispatch("g1", "u1", "甲", "创建"))
     assert "创建了牌局" in text
     assert service.room("g1") is not None
 
-    text = service.dispatch("g1", "u2", "乙", "加入")
+    text = flat(service.dispatch("g1", "u2", "乙", "加入"))
     assert "加入" in text
 
     with pytest.raises(GameError):
         service.dispatch("g1", "u2", "乙", "开始")
 
-    text = service.dispatch("g1", "u1", "甲", "开始")
+    text = flat(service.dispatch("g1", "u1", "甲", "开始"))
     assert "轮到" in text
     room = service.room("g1")
     assert room is not None and room.started
@@ -39,9 +44,9 @@ def test_dispatch_without_room_hints_create() -> None:
     service = GameService()
     with pytest.raises(GameError):
         service.dispatch("g1", "u1", "甲", "状态")
-    menu_text = service.dispatch("g1", "u1", "甲", "")
+    menu_text = flat(service.dispatch("g1", "u1", "甲", ""))
     assert "达芬奇密码" in menu_text
-    help_text = service.dispatch("g1", "u1", "甲", "帮助")
+    help_text = flat(service.dispatch("g1", "u1", "甲", "帮助"))
     assert "猜 B3 7" in help_text
 
 
@@ -77,7 +82,7 @@ def test_dissolve_requires_host() -> None:
     service.dispatch("g1", "u2", "乙", "加入")
     with pytest.raises(GameError):
         service.dispatch("g1", "u2", "乙", "解散")
-    assert "解散" in service.dispatch("g1", "u1", "甲", "解散")
+    assert "解散" in flat(service.dispatch("g1", "u1", "甲", "解散"))
     assert service.room("g1") is None
 
 

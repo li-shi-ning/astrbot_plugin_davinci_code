@@ -6,7 +6,7 @@ import random
 
 from src import cards
 from src.engine import BLACK, PHASE_GUESSING, WHITE, Room, Tile
-from src.render import hand_payload, render_table
+from src.render import hand_payload, render_board
 
 
 def test_tile_image_url_and_alt() -> None:
@@ -49,7 +49,7 @@ def test_table_uses_images_without_index() -> None:
     room.players[1].hand = [Tile(BLACK, 5, "b5", revealed=True)]
     room.phase = PHASE_GUESSING
 
-    table = render_table(room)
+    table = render_board(room)
     assert "1." not in table and "2." not in table
     assert cards.back_md() in table
     assert "![黑5" in table
@@ -79,7 +79,7 @@ def test_long_table_falls_back_to_text() -> None:
     room.started = True
     room.phase = PHASE_GUESSING
 
-    table = render_table(room)
+    table = render_board(room)
     assert len(table) <= MAX_IMAGE_TABLE_CHARS
     assert "placehold.co" not in table
     assert "黑11" in table

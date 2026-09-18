@@ -30,37 +30,34 @@ def render_menu() -> str:
 MAX_IMAGE_TABLE_CHARS = 1500
 
 
-def render_table(room: Room) -> str:
-    """公开牌桌：暗牌统一用「背面图」，明牌用「牌面图」，都不带序号。"""
+def render_board(room: Room) -> str:
+    """牌桌内容（不含回合提示）。
+
+    未开局时是玩家列表；开局后优先用 Markdown 内嵌牌图，
+    图片形式的文本过长时自动退回纯文字。
+    """
     if not room.started:
-        lines = ["当前牌局："]
-        lines.extend(f"{p.label} {p.name}" for p in room.players)
-        lines.append("")
-        lines.append(render_turn_hint(room))
+        return "\n".join(["当前牌局：", *(f"{p.label} {p.name}" for p in room.players)])
+
+    def build(use_images: bool) -> str:
+        lines = [f"牌堆 {len(room.deck)} 张", ""]
+        for player in room.players:
+            mark = "✅" if player.alive else "❌"
+            if use_images:
+                cells = [
+                    cards.tile_md(tile) if tile.revealed else cards.back_md()
+                    for tile in player.hand
+                ]
+            else:
+                cells = [tile.text if tile.revealed else "??" for tile in player.hand]
+            body = " ".join(cells) if cells else "(无牌)"
+            lines.append(f"{player.label} {player.name}{mark}：{body}")
         return "\n".join(lines)
-    table = _render_started_table(room, use_images=True)
+
+    table = build(True)
     if len(table) > MAX_IMAGE_TABLE_CHARS:
-        table = _render_started_table(room, use_images=False)
+        table = build(False)
     return table
-
-
-def _render_started_table(room: Room, use_images: bool) -> str:
-    """拼装进行中的牌桌；``use_images=False`` 时退回纯文字。"""
-    lines = [f"牌堆 {len(room.deck)}", ""]
-    for player in room.players:
-        mark = "✅" if player.alive else "❌"
-        if use_images:
-            cells = [
-                cards.tile_md(tile) if tile.revealed else cards.back_md()
-                for tile in player.hand
-            ]
-        else:
-            cells = [tile.text if tile.revealed else "??" for tile in player.hand]
-        body = " ".join(cells) if cells else "(无牌)"
-        lines.append(f"{player.label} {player.name}{mark}：{body}")
-    lines.append("")
-    lines.append(render_turn_hint(room))
-    return "\n".join(lines)
 
 
 def render_turn_hint(room: Room) -> str:

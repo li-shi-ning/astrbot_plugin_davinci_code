@@ -11,8 +11,12 @@ QQ 官方 Markdown 图片语法为 ``![替代文字 #宽px #高px](公网图片�
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from .engine import BLACK, Tile
+
+# 本地牌面素材（scripts/download_card_assets.py 生成并提交进仓库）
+ASSET_DIR = Path(__file__).resolve().parent.parent / "assets" / "cards"
 
 DEFAULT_BASE = "https://placehold.co/72x108"
 BLACK_STYLE = "000000/FFFFFF"  # 黑底白字
@@ -68,6 +72,17 @@ def parse_size(text: str) -> tuple[int, int]:
 def reset() -> None:
     """恢复默认配置（测试用）。"""
     configure(DEFAULT_BASE, DEFAULT_WIDTH, DEFAULT_HEIGHT)
+
+
+def asset_path(tile: Tile) -> Path:
+    """一张牌的本地素材路径。"""
+    number = "joker" if tile.is_joker else tile.number
+    return ASSET_DIR / f"{tile.color}-{number}.png"
+
+
+def back_asset_path() -> Path:
+    """暗牌背面的本地素材路径。"""
+    return ASSET_DIR / "back.png"
 
 
 def tile_md(tile: Tile) -> str:

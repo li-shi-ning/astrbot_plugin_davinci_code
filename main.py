@@ -15,31 +15,36 @@ from typing import Any
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.star import Context, Star
+from astrbot.api.star import Context, Star, StarTools
 
 try:  # AstrBot 以包形式加载插件时走相对导入
     from .src import cards
+    from .src.board_image import render_board as render_board_image
     from .src.buttons import build_buttons
     from .src.qqofficial import (
         extract_group_context,
         is_qqofficial_event,
+        send_group_media,
         send_group_message,
     )
-    from .src.service import GameError, GameService
+    from .src.service import GameError, GameService, Reply
 except ImportError:  # pragma: no cover - 兼容以顶层模块加载
     plugin_dir = Path(__file__).resolve().parent
     if str(plugin_dir) not in sys.path:
         sys.path.insert(0, str(plugin_dir))
     from src import cards
+    from src.board_image import render_board as render_board_image
     from src.buttons import build_buttons
     from src.qqofficial import (
         extract_group_context,
         is_qqofficial_event,
+        send_group_media,
         send_group_message,
     )
-    from src.service import GameError, GameService
+    from src.service import GameError, GameService, Reply
 
 
+PLUGIN_NAME = "astrbot_plugin_davinci_code"
 COMMAND_NAMES = ("达芬奇密码", "达芬奇")
 
 
@@ -50,9 +55,15 @@ class DavinciCodePlugin(Star):
         super().__init__(context)
         self.config = dict(config) if config else {}
         self.with_jokers = self._config_bool("with_jokers", True)
+        self.send_board_image = self._config_bool("board_image", True)
         self.card_image_base = self._config_str("card_image_base", cards.DEFAULT_BASE)
         size_text = self._config_str("card_image_size", "32x48")
         cards.configure(self.card_image_base, *cards.parse_size(size_text))
+        self.board_dir = Path(StarTools.get_data_dir(PLUGIN_NAME))
+        self.board_dir.mkdir(parents=True, exist_ok=True)
+        self.board_font_path = (
+            self._config_str("board_font_path", "") or self._default_font()
+        )
         self.service = GameService(with_jokers=self.with_jokers)
 
     async def initialize(self) -> None:
@@ -90,23 +101,35 @@ class DavinciCodePlugin(Star):
         lock = self.service.lock(context.group_openid)
         async with lock:
             try:
-                text = self.service.dispatch(
+                reply = self.service.dispatch(
                     context.group_openid,
                     context.member_openid,
                     context.display_name,
                     action_text,
                 )
             except GameError as exc:
-                text = f"⚠️ {exc}"
+                reply = Reply(text=f"⚠️ {exc}")
             except Exception as exc:  # noqa: BLE001 - 单条指令失败不影响其他群
                 logger.exception("[DavinciCode] dispatch failed: %s", exc)
-                text = "达芬奇密码处理失败，请稍后重试。"
-            buttons = build_buttons(
-                self.service.room(context.group_openid), context.member_openid
+                reply = Reply(text="达芬奇密码处理失败，请稍后重试。")
+            room = self.service.room(context.group_openid)
+            buttons = build_buttons(room, context.member_openid)
+            board_path = (
+                self._render_board(room)
+                if room is not None and room.started and self.send_board_image
+                else None
             )
 
-        if not await send_group_message(event, context, text, buttons):
-            yield event.plain_result(text)
+        # 1) 牌桌图片走富媒体（msg_type=7，不能带 Markdown/键盘）
+        image_sent = False
+        if board_path is not None:
+            image_sent = await send_group_media(event, context, board_path)
+
+        # 2) 文字 + 按钮走 Markdown 消息
+        parts = [reply.text, None if image_sent else reply.table, reply.hint]
+        body = "\n\n".join(part for part in parts if part)
+        if not await send_group_message(event, context, body, buttons):
+            yield event.plain_result(body)
         event.stop_event()
 
     # ------------------------------------------------------------------
@@ -129,6 +152,23 @@ class DavinciCodePlugin(Star):
             if text.startswith(prefix):
                 return text[len(prefix) :].strip()
         return text
+
+    def _default_font(self) -> str:
+        """优先用 AstrBot 自带的 /AstrBot/data/font.ttf。"""
+        candidate = self.board_dir.parent.parent / "font.ttf"
+        return str(candidate) if candidate.is_file() else ""
+
+    def _render_board(self, room) -> Path | None:
+        """把牌桌渲染成本地 PNG，失败返回 None（会退回 Markdown 牌桌）。"""
+        try:
+            return render_board_image(
+                room,
+                self.board_dir / "board.png",
+                font_path=self.board_font_path or None,
+            )
+        except Exception as exc:  # noqa: BLE001 - 渲染失败不应影响出牌
+            logger.warning("[DavinciCode] render board failed: %s", exc)
+            return None
 
     def _config_str(self, key: str, default: str) -> str:
         value = (

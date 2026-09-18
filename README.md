@@ -51,22 +51,29 @@ QQ 官方群聊没有「仅自己可见」的消息接口，因此本插件沿�
 
 ## 牌面展示
 
+牌面素材随插件提供（`assets/cards/`，由 `scripts/download_card_assets.py` 生成并提交），
+运行时不访问任何外网图床。
+
 | 场景 | 形式 |
 | --- | --- |
-| 公开牌桌 / 公开播报 | Markdown 内嵌牌图，如 `![黑7 #32px #48px](...)`；背面为蓝色图 |
-| 私密手牌（按钮） | 纯文字：`A手牌 黑0 白2 百搭（看完请勿发送）` |
+| 公开牌桌 | 本地用 Pillow 渲染成 **一张 PNG**，通过 QQ 富媒体上传接口以 `msg_type=7` 发送 |
+| 文字 + 按钮 | Markdown 消息（富媒体不能带 Markdown/键盘，所以单独一条） |
+| 私密手牌 | 纯文字，挂在 `only_for` 按钮上，内容只进本人输入框 |
+| 兜底 | 富媒体上传/发送失败时自动退回 Markdown 内嵌牌图 |
 
-- 图片语法：`![替代文字 #宽px #高px](公网图片直链)`，
-  替代文字即牌面文字，图片加载失败时会显示它做兜底。
-- 牌局后期图片过多时（超过 1500 字）会自动退回纯文字牌桌，避免超出 QQ Markdown 长度。
+- 牌桌图里的昵称需要中文字体：优先使用 AstrBot 自带的 `/AstrBot/data/font.ttf`，
+  也可用 `board_font_path` 指定；找不到字体时会退化用默认字体。
+- `board_image=false` 可关闭图片，只发 Markdown 牌图。
 
 ## 配置 `_conf_schema.json`
 
 | 键 | 默认 | 说明 |
 | --- | --- | --- |
 | `with_jokers` | `true` | 是否加入两张百搭牌；关闭后为 24 张纯数字牌 |
-| `card_image_base` | `https://placehold.co/72x108` | 牌面图片服务前缀，格式 `{前缀}/背景色/文字色.png?text=文字`；QQ 抓不到图时可换成自己的图床 |
-| `card_image_size` | `32x48` | 牌面图在 Markdown 中的显示尺寸（`宽x高`，px）；觉得大就调小，如 `24x36` |
+| `board_image` | `true` | 是否把牌桌渲染成图片走富媒体发送 |
+| `board_font_path` | `""` | 牌桌图使用的中文字体路径，留空自动查找 |
+| `card_image_base` | `https://placehold.co/72x108` | 兜底用的 Markdown 牌图服务前缀 |
+| `card_image_size` | `32x48` | 兜底牌图的显示尺寸（`宽x高`，px） |
 
 ## 已知限制
 

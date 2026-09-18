@@ -186,6 +186,57 @@ async def send_group_message(
         return False
 
 
+def passive_fields(context: GroupContext) -> dict[str, Any]:
+    """被动回复所需的 ``msg_id`` / ``msg_seq``（同一消息需用不同 seq）。"""
+    if not context.message_id:
+        return {}
+    return {"msg_id": context.message_id, "msg_seq": random.randint(1, 10000)}
+
+
+async def send_group_media(
+    event: Any,
+    context: GroupContext,
+    file_path: Any,
+) -> bool:
+    """上传本地图片并用富媒体消息（``msg_type=7``）发送。
+
+    QQ 富媒体消息不能和 Markdown 同条，因此牌桌图片单独发送，
+    按钮仍由 :func:`send_group_message` 的 Markdown 消息承载。
+
+    Args:
+        event: QQ 官方消息事件（需带 ``upload_group_and_c2c_media``）。
+        context: 群上下文。
+        file_path: 本地图片路径。
+
+    Returns:
+        发送成功返回 ``True``，失败返回 ``False``。
+    """
+    uploader = getattr(event, "upload_group_and_c2c_media", None)
+    api = getattr(getattr(event, "bot", None), "api", None)
+    post_group_message = getattr(api, "post_group_message", None)
+    if not callable(uploader) or not callable(post_group_message):
+        return False
+
+    try:
+        media = await uploader(
+            file_source=str(file_path),
+            file_type=1,
+            group_openid=context.group_openid,
+        )
+    except Exception as exc:  # noqa: BLE001 - 上传失败要能退回 Markdown 牌桌
+        logger.warning("[DavinciCode] upload board image failed: %s", exc)
+        return False
+
+    payload: dict[str, Any] = {"msg_type": 7, "media": media}
+    payload.update(passive_fields(context))
+    try:
+        await post_group_message(group_openid=context.group_openid, **payload)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[DavinciCode] send board image failed: %s", exc)
+        return False
+
+
 def _first_str(*values: Any) -> str | None:
     for value in values:
         if value is None:

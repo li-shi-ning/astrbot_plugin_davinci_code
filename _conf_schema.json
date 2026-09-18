@@ -5,6 +5,18 @@
     "hint": "开启后共 26 张牌；关闭后为 24 张纯数字牌。建议保持开启。",
     "default": true
   },
+  "board_image": {
+    "description": "是否把牌桌渲染成图片，通过 QQ 富媒体消息发送。",
+    "type": "bool",
+    "hint": "开启后牌桌用本地渲染的 PNG（富媒体上传）；失败会自动退回 Markdown 内嵌牌图。",
+    "default": true
+  },
+  "board_font_path": {
+    "description": "渲染牌桌图片时使用的中文字体路径。",
+    "type": "string",
+    "hint": "留空会自动查找 AstrBot 自带的 /AstrBot/data/font.ttf 或系统中文字体。",
+    "default": ""
+  },
   "card_image_base": {
     "description": "牌面图片服务前缀（QQ Markdown 内嵌图）。",
     "type": "string",
