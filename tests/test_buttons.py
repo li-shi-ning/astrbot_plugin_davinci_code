@@ -46,16 +46,18 @@ def test_playing_buttons_hide_hands_behind_owner_permission() -> None:
     room.players[1].hand = [Tile(WHITE, 5, "w5")]
     room.phase = PHASE_GUESSING
 
-    host_view = playing_buttons(room, "u1")
-    hand_buttons = [b for b in host_view if "手牌" in b.label]
+    view = playing_buttons(room)
+    hand_buttons = [b for b in view if "手牌" in b.label]
     assert [b.only_for for b in hand_buttons] == ["u1", "u2"]
     assert "1.黑1" in hand_buttons[0].data
     assert "1.白5" in hand_buttons[1].data
 
-    # 只有当前玩家能看到自己的操作按钮
-    room.turn_index = 1  # 轮到 u2
-    assert "猜牌" in [b.label for b in playing_buttons(room, "u2")]
-    assert "猜牌" not in [b.label for b in playing_buttons(room, "u1")]
+    # 操作按钮永远指向当前回合玩家，而不是触发消息的玩家
+    guess = next(b for b in view if b.label == "猜牌")
+    assert guess.only_for == room.current.user_id
+    room.turn_index = 1
+    guess = next(b for b in playing_buttons(room) if b.label == "猜牌")
+    assert guess.only_for == "u2"
 
 
 def test_continuing_buttons_offer_guess_and_stop() -> None:
@@ -63,6 +65,24 @@ def test_continuing_buttons_offer_guess_and_stop() -> None:
     room.players[0].hand = [Tile(BLACK, 1, "b1")]
     room.players[1].hand = [Tile(WHITE, 5, "w5")]
     room.phase = PHASE_CONTINUING
-    labels = [b.label for b in playing_buttons(room, "u1")]
+    labels = [b.label for b in playing_buttons(room)]
     assert "继续猜" in labels
     assert "收手" in labels
+
+
+def test_guess_button_follows_turn_after_wrong_guess() -> None:
+    """回归：回合交给别人后，回复里的「猜牌」按钮应属于新的当前玩家。"""
+    room = make_room(2, started=True)
+    room.players[0].hand = [Tile(BLACK, 1, "b1"), Tile(WHITE, 3, "w3")]
+    room.players[1].hand = [Tile(BLACK, 5, "b5"), Tile(WHITE, 8, "w8")]
+    room.turn_index = 0
+    room.phase = PHASE_GUESSING
+    room.deck = [Tile(BLACK, 4, "b4"), Tile(WHITE, 6, "w6")]
+    room._begin_turn()
+
+    assert room.current.user_id == "u1"
+    room.guess("u1", "B", 1, 9)  # 猜错，回合交给 u2
+    assert room.current.user_id == "u2"
+
+    guess = next(b for b in playing_buttons(room) if b.label == "猜牌")
+    assert guess.only_for == "u2"

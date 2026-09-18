@@ -25,7 +25,7 @@ def build_buttons(room: Room | None, requester_id: str) -> list[Button]:
         ]
     if not room.started:
         return waiting_buttons(room, requester_id)
-    return playing_buttons(room, requester_id)
+    return playing_buttons(room)
 
 
 def waiting_buttons(room: Room, requester_id: str) -> list[Button]:
@@ -42,8 +42,12 @@ def waiting_buttons(room: Room, requester_id: str) -> list[Button]:
     return buttons
 
 
-def playing_buttons(room: Room, requester_id: str) -> list[Button]:
-    """进行中：私密手牌 + 当前玩家操作 + 公开操作。"""
+def playing_buttons(room: Room) -> list[Button]:
+    """进行中：私密手牌 + 当前玩家操作 + 公开操作。
+
+    操作按钮按 **当前回合玩家** 生成（``only_for`` 只允许他点击），
+    这样无论谁触发这条消息，轮到的人都能看到自己的「猜牌 / 收手」按钮。
+    """
     buttons: list[Button] = []
     for index, player in enumerate(room.players):
         buttons.append(
@@ -56,27 +60,33 @@ def playing_buttons(room: Room, requester_id: str) -> list[Button]:
         )
 
     current = room.current
-    if current is not None and current.user_id == requester_id:
+    if current is not None:
+        actor = current.user_id
         if room.phase == PHASE_PLACING:
             buttons.append(
-                Button(
-                    "dvc_place", "选择百搭位置", "达芬奇密码 放 ", only_for=requester_id
-                )
+                Button("dvc_place", "选择百搭位置", "达芬奇密码 放 ", only_for=actor)
             )
         elif room.phase == PHASE_GUESSING:
             buttons.append(
-                Button("dvc_guess", "猜牌", "达芬奇密码 猜 ", only_for=requester_id)
+                Button("dvc_guess", "猜牌", "达芬奇密码 猜 ", only_for=actor)
             )
         elif room.phase == PHASE_CONTINUING:
             buttons.append(
-                Button("dvc_guess", "继续猜", "达芬奇密码 猜 ", only_for=requester_id)
+                Button("dvc_guess", "继续猜", "达芬奇密码 猜 ", only_for=actor)
             )
             buttons.append(
-                Button("dvc_stop", "收手", "达芬奇密码 收手", only_for=requester_id)
+                Button("dvc_stop", "收手", "达芬奇密码 收手", only_for=actor)
             )
 
     buttons.append(Button("dvc_state", "牌桌状态", "达芬奇密码 状态"))
     buttons.append(Button("dvc_rules", "玩法规则", "达芬奇密码 规则"))
-    if room.players and room.players[0].user_id == requester_id:
-        buttons.append(Button("dvc_dissolve", "解散牌局", "达芬奇密码 解散"))
+    if room.players:
+        buttons.append(
+            Button(
+                "dvc_dissolve",
+                "解散牌局",
+                "达芬奇密码 解散",
+                only_for=room.players[0].user_id,
+            )
+        )
     return buttons
