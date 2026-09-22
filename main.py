@@ -154,7 +154,7 @@ class DavinciCodePlugin(Star):
         return text
 
     def _default_font(self) -> str:
-        """优先用 AstrBot 自带的 /AstrBot/data/font.ttf。"""
+        """优先用 AstrBot 数据目录下的 font.ttf。"""
         candidate = self.board_dir.parent.parent / "font.ttf"
         return str(candidate) if candidate.is_file() else ""
 

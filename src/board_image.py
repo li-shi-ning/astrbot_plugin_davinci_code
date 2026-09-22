@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from . import cards
@@ -23,18 +24,24 @@ MUTED = (160, 162, 170)
 CURRENT_BG = (255, 243, 205)
 OUT_BG = (236, 237, 240)
 
-# AstrBot 自带 /AstrBot/data/font.ttf（文泉驿微米黑），再兜底到常见中文字体
-FONT_CANDIDATES = (
-    "/AstrBot/data/font.ttf",
-    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
-    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/arphic/uming.ttc",
-    "C:/Windows/Fonts/msyh.ttc",
-    "/System/Library/Fonts/PingFang.ttc",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-)
+# 优先系统中文字体；Windows 字体路径由 WINDIR 环境变量动态拼出，避免硬编码。
+def _font_candidates() -> tuple[str, ...]:
+    candidates = [
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/arphic/uming.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    windir = os.environ.get("WINDIR")
+    if windir:
+        candidates.insert(0, str(Path(windir) / "Fonts" / "msyh.ttc"))
+    return tuple(candidates)
+
+
+FONT_CANDIDATES = _font_candidates()
 
 
 def find_font() -> str | None:

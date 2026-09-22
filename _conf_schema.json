@@ -14,7 +14,7 @@
   "board_font_path": {
     "description": "渲染牌桌图片时使用的中文字体路径。",
     "type": "string",
-    "hint": "留空会自动查找 AstrBot 自带的 /AstrBot/data/font.ttf 或系统中文字体。",
+    "hint": "留空会自动查找 AstrBot 数据目录下的 font.ttf 或系统中文字体。",
     "default": ""
   },
   "card_image_base": {

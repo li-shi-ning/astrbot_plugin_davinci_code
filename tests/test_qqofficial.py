@@ -69,7 +69,7 @@ def test_extract_group_context_from_raw_message() -> None:
     assert context.msg_seq == 2
 
 
-def test_send_group_media_uploads_then_posts() -> None:
+def test_send_group_media_uploads_then_posts(tmp_path) -> None:
     import asyncio
 
     from src.qqofficial import GroupContext, send_group_media
@@ -94,7 +94,7 @@ def test_send_group_media_uploads_then_posts() -> None:
         group_openid="g1", member_openid="u1", display_name="甲", message_id="m1"
     )
     event = Event()
-    assert asyncio.run(send_group_media(event, context, "/tmp/board.png")) is True
+    assert asyncio.run(send_group_media(event, context, str(tmp_path / "board.png"))) is True
 
     assert event.uploads[0]["file_type"] == 1
     assert event.uploads[0]["group_openid"] == "g1"
@@ -105,18 +105,18 @@ def test_send_group_media_uploads_then_posts() -> None:
     assert "msg_seq" in post
 
 
-def test_send_group_media_returns_false_without_uploader() -> None:
+def test_send_group_media_returns_false_without_uploader(tmp_path) -> None:
     import asyncio
 
     from src.qqofficial import GroupContext, send_group_media
 
     context = GroupContext(group_openid="g1", member_openid="u1", display_name="甲")
     assert (
-        asyncio.run(send_group_media(SimpleNamespace(), context, "/tmp/x.png")) is False
+        asyncio.run(send_group_media(SimpleNamespace(), context, str(tmp_path / "x.png"))) is False
     )
 
 
-def test_send_group_media_swallows_upload_error() -> None:
+def test_send_group_media_swallows_upload_error(tmp_path) -> None:
     import asyncio
 
     from src.qqofficial import GroupContext, send_group_media
@@ -128,4 +128,4 @@ def test_send_group_media_swallows_upload_error() -> None:
             raise RuntimeError("boom")
 
     context = GroupContext(group_openid="g1", member_openid="u1", display_name="甲")
-    assert asyncio.run(send_group_media(Event(), context, "/tmp/x.png")) is False
+    assert asyncio.run(send_group_media(Event(), context, str(tmp_path / "x.png"))) is False

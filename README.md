@@ -61,7 +61,7 @@ QQ 官方群聊没有「仅自己可见」的消息接口，因此本插件沿�
 | 私密手牌 | 纯文字，挂在 `only_for` 按钮上，内容只进本人输入框 |
 | 兜底 | 富媒体上传/发送失败时自动退回 Markdown 内嵌牌图 |
 
-- 牌桌图里的昵称需要中文字体：优先使用 AstrBot 自带的 `/AstrBot/data/font.ttf`，
+- 牌桌图里的昵称需要中文字体：优先使用 AstrBot 数据目录下的 `font.ttf`，
   也可用 `board_font_path` 指定；找不到字体时会退化用默认字体。
 - `board_image=false` 可关闭图片，只发 Markdown 牌图。
 
